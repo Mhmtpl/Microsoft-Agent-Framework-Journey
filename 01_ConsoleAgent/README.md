@@ -30,7 +30,7 @@ Projenin mimarisi, ajan tabanlı sistemlerin temel prensiplerini ve .NET ekosist
 
 ## Kullanılan Teknolojiler
 
-*   **.NET 8 ve C# 12:** Modern .NET platformu ve C# dil özelliklerinden faydalanır.
+*   **.NET 10 ve C# 14:** Modern .NET platformu ve C# dil özelliklerinden faydalanır.
 *   **Microsoft Agents for .NET (Preview):** Ajan tabanlı uygulamalar geliştirmek için deneysel framework.
 *   **OpenAI SDK for .NET:** Gemini gibi LLM'lerle entegrasyonu kolaylaştıran kütüphane.
 *   **Gemini API:** Büyük dil modeli olarak kullanılır.
@@ -46,7 +46,7 @@ Projenin mimarisi, ajan tabanlı sistemlerin temel prensiplerini ve .NET ekosist
 
 ### Ön Koşullar
 
-*   [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) yüklü olmalıdır.
+*   [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) yüklü olmalıdır.
 *   Bir Google Gemini API anahtarına sahip olmalısınız.
 
 ### Adım 1: Gemini API Anahtarını Ayarlayın

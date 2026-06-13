@@ -46,7 +46,7 @@ Bu proje, uzun süreli ve durum bilgisi gerektiren ajan tabanlı iş akışları
 Bu projeyi yerel ortamınızda çalıştırmak için aşağıdaki adımları izleyin:
 
 ### Ön Koşullar
-*   .NET 8 SDK
+*   .NET 10 SDK
 *   Bir yapay zeka modeli sağlayıcısı (Örn: Google Gemini) ve API anahtarı.
     *   `Microsoft.Agents.AI` şu anda OpenAI uyumlu istemcileri desteklemektedir. Gemini için Google'ın OpenAI uyumlu endpoint'ini kullanıyoruz.
 

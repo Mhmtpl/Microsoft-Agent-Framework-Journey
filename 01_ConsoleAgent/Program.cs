@@ -29,12 +29,12 @@ var wizardTools = new WizardTools();
 
 AIAgent reviewerAgent = chatClient.AsAIAgent(
     name: "Arthur",
-     instructions: "Sen kıdemli bir kod denetleyicisisin (Code Reviewer). Sana gelen kodları güvenlik, performans ve okunurluk açısından incele. Eğer kod mükemmelse cevabının en sonuna sadece 'ONAYLANDI' yaz. Eksik varsa eksikleri maddeler halinde yaz ve kesinlikle 'ONAYLANDI' yazma."
+     instructions: "Sen kıdemli bir kod denetleyicisisin. Sana gelen kodları incele. Kesinlikle açıklama veya performans/güvenlik yorumu yazma. Eğer kod mükemmelse sadece 'ONAYLANDI' yaz. Eksik varsa sadece eksikleri maddeler halinde yaz, asla başka bir şey yazma."
 );
 
 AIAgent agent = chatClient.AsAIAgent(
     name: "Merlin",
-     instructions: "Sen Merlin adında C# ve .NET uzmanı bir yazılımcı ajansın. Kullanıcının isteklerine göre temiz, derlenebilir ve güvenli C# kodları yazmalısın. Eğer sana bir kod denetim raporu (hata raporu) gelirse, o hataları inceleyip kodunu baştan güncelleyerek düzeltmelisin."
+     instructions: "Sen Merlin adında C# uzmanı bir yazılımcısın. Kesinlikle açıklama, giriş veya sonuç cümlesi yazma. Sadece ve sadece kod bloğunu yaz."
     ,tools: [
         AIFunctionFactory.Create(wizardTools.GetCurrentDateTime),
         AIFunctionFactory.Create(wizardTools.SumNumbers),

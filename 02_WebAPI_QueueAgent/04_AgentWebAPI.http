@@ -1,0 +1,44 @@
+@HostAddress = http://localhost:5262
+
+### 1. Asenkron Ajan Akışı Tetikleme (Kuyruğa Atar)
+# Bu istek anında 202 Accepted ve bir jobId döner.
+POST {{HostAddress}}/api/chat/async
+Content-Type: application/json
+
+{
+  "sessionId": "bruno_hitl_test",
+  "prompt": "Toplama yapan basit bir C# sınıfı yaz."
+}
+
+###
+
+### 2. İş Durumu Sorgulama (GET Sorgusu)
+# Yukarıdaki asenkron istekten dönen jobId değerini buraya yapıştırın.
+# Durum "WaitingForHumanApproval" olana kadar ara sıra sorgulayın.
+GET {{HostAddress}}/api/chat/status/f71ca95a45c44989ae0f6aef7e93c0bf
+Accept: application/json
+
+###
+
+### 3. İnsan Onayı Verme (Onaylama Durumu)
+# İş durumu "WaitingForHumanApproval" olduğunda bu isteği atın.
+# approved: true ise akış başarıyla biter (Approved olur).
+POST {{HostAddress}}/api/chat/approve/f71ca95a45c44989ae0f6aef7e93c0bf
+Content-Type: application/json
+
+{
+  "approved": true,
+  "comment": "Kod mükemmel görünüyor, canlıya alabiliriz."
+}
+
+###
+
+### 4. İnsan Reddetme Durumu (Revizyon İsteği)
+# Eğer approved: false yaparsanız, Merlin kodu yöneticinin yorumuna göre tekrar düzeltecektir.
+POST {{HostAddress}}/api/chat/approve/f71ca95a45c44989ae0f6aef7e93c0bf
+Content-Type: application/json
+
+{
+  "approved": false,
+  "comment": "Calculator sınıfına toplama işlemini loglayan bir satır daha ekle kanka."
+}

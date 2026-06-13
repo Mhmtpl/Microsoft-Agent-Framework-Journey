@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Social Media Drafts
+**/socials/
+
+
 # User-specific files
 *.rsuser
 *.suo

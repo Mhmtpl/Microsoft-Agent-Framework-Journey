@@ -7,6 +7,7 @@ using Microsoft.Extensions.AI;
 using OpenAI;
 using System.ClientModel;
 using Microsoft.Extensions.Configuration;
+using System.Linq;
 
 
 class Program
@@ -16,14 +17,12 @@ class Program
         Console.WriteLine("📊 OpenTelemetry Gözlemlenebilirlik (Observability) Demosu");
         Console.WriteLine("========================================================\n");
 
-        // 1. OpenTelemetry İzleyici (Tracer) Yapılandırması
-        // Ajanın ürettiği verileri yakalamak için hem kendi özel kaynağımızı 
-        // hem de .NET'in varsayılan deneysel AI kaynaklarını dinliyoruz.
+        // 1. OpenTelemetry İzleyici (Tracer) Yapılandırması (Özel Konsol Tasarımı ile)
         using var tracerProvider = Sdk.CreateTracerProviderBuilder()
             .AddSource("MyAIApplication") // Bizim özel tanımladığımız kaynak
             .AddSource("Microsoft.Extensions.AI") // Varsayılan kaynak
             .AddSource("Experimental.Microsoft.Extensions.AI") // Deneysel sürüm kaynağı
-            .AddConsoleExporter() // Yakalanan verileri konsola (terminale) yazdır
+            .AddProcessor(new SimpleActivityExportProcessor(new CustomConsoleExporter()))
             .Build();
 
         // 2. User Secrets ile API Key'i Okuma
@@ -31,43 +30,128 @@ class Program
             .AddUserSecrets<Program>()
             .Build();
 
-        string apiKey = config["GEMINI_API_KEY"] ?? "";
+        // Çevre değişkeni veya Secrets üzerinden anahtarı çek
+        string apiKey = config["GEMINI_API_KEY"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? "";
         if (string.IsNullOrEmpty(apiKey))
         {
-            Console.WriteLine("⚠️ WARNING: GEMINI_API_KEY could not be loaded from User Secrets!");
+            Console.WriteLine("⚠️ WARNING: GEMINI_API_KEY could not be loaded from User Secrets or Environment Variables!");
             return;
         }
-
 
         // 3. Chat Client Kurulumu (Gemini bağlantısı ve Telemetry Middleware Entegrasyonu)
         Uri endpoint = new Uri("https://generativelanguage.googleapis.com/v1beta/openai/");
         var options = new OpenAIClientOptions { Endpoint = endpoint };
         var client = new OpenAIClient(new ApiKeyCredential(apiKey), options);
         
-        // ChatClientBuilder ile pipeline oluşturup .UseOpenTelemetry() adımını ekliyoruz.
-        // sourceName parametresi ile hangi kanaldan yayın yapacağını belirliyoruz.
         var chatClient = new ChatClientBuilder(client.GetChatClient("gemini-2.5-flash").AsIChatClient())
             .UseOpenTelemetry(sourceName: "MyAIApplication")
             .Build();
 
+        Console.WriteLine("🔄 Gemini'ye istek gönderiliyor...\n");
 
-
-        Console.WriteLine("🔄 Gemini'ye istek gönderiliyor...");
-
-        // 4. İstek Gönderimi (Arka planda OpenTelemetry bu işlemi izler, süreyi ve tokenları kaydeder)
+        // 4. İstek Gönderimi
         try
         {
             var response = await chatClient.GetResponseAsync("C# nedir, en fazla 5 kelimeyle açıkla.");
-            Console.WriteLine($"\n🤖 Ajan Yanıtı: {response.Text}\n");
+            Console.WriteLine($"🤖 Ajan Yanıtı: {response.Text}\n");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n❌ İstek Hata Aldı: {ex.Message}\n");
+            Console.WriteLine($"❌ İstek Hata Aldı: {ex.Message}\n");
         }
         
         Console.WriteLine("========================================================");
-        Console.WriteLine("Yukarıdaki çıktıları inceleyin. OpenTelemetry, harcanan süreyi (Duration), ");
-        Console.WriteLine("olası hata durumlarını (error.type) veya başarı durumunu otomatik yakaladı!");
+    }
+}
 
+// 5. Görsel Açıdan Zengin Özel OpenTelemetry Konsol Çıktısı Sağlayıcı
+public class CustomConsoleExporter : BaseExporter<Activity>
+{
+    public override ExportResult Export(in Batch<Activity> batch)
+    {
+        foreach (var activity in batch)
+        {
+            // Sadece AI çağrılarını veya kendi uygulamamızı yakalayalım
+            if (activity.Source.Name != "MyAIApplication" && activity.Source.Name != "Microsoft.Extensions.AI")
+                continue;
+
+            var tags = activity.TagObjects.ToDictionary(t => t.Key, t => t.Value);
+
+            string model = (tags.TryGetValue("gen_ai.request.model", out var m) ? m?.ToString() : null) ?? activity.DisplayName ?? "Bilinmiyor";
+            string server = (tags.TryGetValue("server.address", out var s) ? s?.ToString() : null) ?? "Bilinmiyor";
+            string duration = $"{activity.Duration.TotalSeconds:F2} sn";
+            string traceId = activity.TraceId.ToString();
+
+            // Token verilerini çekelim
+            int inputTokens = 0;
+            int outputTokens = 0;
+            if (tags.TryGetValue("gen_ai.usage.input_tokens", out var it) && it != null) inputTokens = Convert.ToInt32(it);
+            if (tags.TryGetValue("gen_ai.usage.output_tokens", out var ot) && ot != null) outputTokens = Convert.ToInt32(ot);
+            int totalTokens = inputTokens + outputTokens;
+
+            bool isSuccess = activity.Status != ActivityStatusCode.Error;
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("┌────────────────────────────────────────────────────────┐");
+            PrintLine("📊 OPENTELEMETRY AI SPAN REPORT", "", ConsoleColor.Cyan);
+            Console.WriteLine("├────────────────────────────────────────────────────────┤");
+            Console.ResetColor();
+
+            PrintLine("Model:    ", model);
+            PrintLine("Duration: ", duration);
+            PrintLine("Server:   ", server);
+            PrintLine("Trace ID: ", traceId);
+
+            if (isSuccess && totalTokens > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("├────────────────────────────────────────────────────────┤");
+                PrintLine("📈 TOKEN USAGE", "", ConsoleColor.Cyan);
+                Console.ResetColor();
+                PrintLine("Input:    ", $"{inputTokens} tokens");
+                PrintLine("Output:   ", $"{outputTokens} tokens");
+                PrintLine("Total:    ", $"{totalTokens} tokens");
+            }
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("├────────────────────────────────────────────────────────┤");
+            Console.ResetColor();
+
+            if (isSuccess)
+            {
+                PrintLine("Status:   ", "Success", ConsoleColor.Green);
+            }
+            else
+            {
+                string errorType = (tags.TryGetValue("error.type", out var et) ? et?.ToString() : null) ?? "Bilinmiyor";
+                if (errorType.Contains("."))
+                {
+                    errorType = errorType.Split('.').Last() ?? "Bilinmiyor"; // Namespace kısmını kırparak temizle
+                }
+                PrintLine("Status:   ", $"Error ({errorType})", ConsoleColor.Red);
+            }
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("└────────────────────────────────────────────────────────┘");
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+        return ExportResult.Success;
+    }
+
+    private static void PrintLine(string label, string value, ConsoleColor? color = null)
+    {
+        int maxLength = 54;
+        string line = $"{label}{value}";
+        if (line.Length > maxLength)
+        {
+            line = line.Substring(0, maxLength - 3) + "...";
+        }
+        string padded = line.PadRight(maxLength);
+        Console.Write("│ ");
+        if (color.HasValue) Console.ForegroundColor = color.Value;
+        Console.Write(padded);
+        Console.ResetColor();
+        Console.WriteLine(" │");
     }
 }

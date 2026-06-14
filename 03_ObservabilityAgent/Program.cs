@@ -47,20 +47,43 @@ class Program
             .UseOpenTelemetry(sourceName: "MyAIApplication")
             .Build();
 
-        Console.WriteLine("🔄 Gemini'ye istek gönderiliyor...\n");
+        Console.WriteLine("💬 Yapay Zeka ile Sohbet Başladı (Çıkmak için 'q' veya 'exit' yazın)");
+        Console.WriteLine("====================================================================\n");
 
-        // 4. İstek Gönderimi
-        try
+        while (true)
         {
-            var response = await chatClient.GetResponseAsync("C# nedir, en fazla 5 kelimeyle açıkla.");
-            Console.WriteLine($"🤖 Ajan Yanıtı: {response.Text}\n");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("👤 Siz: ");
+            Console.ResetColor();
+
+            string? input = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(input) || 
+                input.Equals("q", StringComparison.OrdinalIgnoreCase) || 
+                input.Equals("exit", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("\nSohbet sonlandırıldı. İyi günler! 👋");
+                break;
+            }
+
+            Console.WriteLine("🔄 Yanıt bekleniyor...");
+
+            // 4. İstek Gönderimi (Arkaplanda OpenTelemetry bunu izleyecek)
+            try
+            {
+                var response = await chatClient.GetResponseAsync(input);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"🤖 Ajan: {response.Text}");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ İstek Hata Aldı: {ex.Message}");
+                Console.ResetColor();
+            }
+            
+            Console.WriteLine("\n────────────────────────────────────────────────────────");
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ İstek Hata Aldı: {ex.Message}\n");
-        }
-        
-        Console.WriteLine("========================================================");
     }
 }
 
